@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Cache Control -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
+    <title>POS Fast & Fixed</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+
+    <style>
+        :root {
+            --bg-gradient: radial-gradient(circle at center, #1f2233, #000000);
+            --glass-menu: rgba(20, 20, 20, 0.85);
+            --glass-card: rgba(40, 40, 40, 0.4);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --primary: #3b82f6;
+            --primary-glow: rgba(59, 130, 246, 0.4);
+            --text: #ffffff;
+            --danger: #ef4444;
+            --success: #10b981;
+            --google-blue: #4285F4;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; user-select: none; }
+        
+        body { 
+            font-family: 'Noto Kufi Arabic', sans-serif; 
+            margin: 0; 
+            background: var(--bg-gradient); 
+            background-attachment: fixed;
+            color: var(--text); 
+            padding-bottom: 80px; 
+            overflow-x: hidden; 
+            min-height: 100vh;
+            font-size: 14px;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(15, 15, 15, 0.95);
+            padding: 10px 15px; position: sticky; top: 0; z-index: 50;
+            border-bottom: 1px solid var(--glass-border); 
+            display: flex; justify-content: space-between; align-items: center;
+            height: 60px;
+        }
+        .header button { padding: 8px; border-radius: 50%; background: transparent; border: none; color: white; cursor: pointer; }
+        .brand { font-size: 1.1rem; font-weight: 800; color: var(--primary); }
+
+        /* Sidebar */
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 9998; opacity: 0; pointer-events: none; transition: 0.2s; }
+        .overlay.active { opacity: 1; pointer-events: all; }
+        
+        .sidebar {
+            position: fixed; top: 0; right: -300px; bottom: 0; width: 260px;
+            background: #111; border-left: 1px solid #333; 
+            z-index: 9999; padding: 20px; display: flex; flex-direction: column; 
+            transition: 0.3s;
+        }
+        .sidebar.open { right: 0; }
+        
+        #cat-list { flex: 1; overflow-y: auto; margin-top: 15px; }
+        .cat-item { 
+            padding: 12px; margin-bottom: 5px; border-radius: 8px; 
+            background: rgba(255, 255, 255, 0.05); cursor: pointer; color: #ccc; 
+            font-weight: 600; font-size: 0.9rem;
+        }
+        .cat-item.active-cat { background: var(--primary); color: white; }
+
+        /* Alpha Scroll */
+        .alpha-bar {
+            position: fixed; top: 70px; right: 0; bottom: 90px; width: 40px;
+            display: flex; flex-direction: column; align-items: center; 
+            z-index: 9000; overflow-y: auto; pointer-events: none; 
+        }
+        .alpha-char { 
+            width: 100%; height: 3.5%; flex-shrink: 0; min-height: 25px;
+            display:flex; align-items:center; justify-content:center; 
+            font-weight:bold; cursor: pointer; color: #888;
+            font-size: 12px; pointer-events: auto; 
+        }
+        .alpha-char:active { color: var(--primary); font-size: 16px; font-weight: 900; }
+
+        /* Grid System - Responsive */
+        .grid { 
+            display: grid; gap: 10px; padding: 10px; padding-right: 45px; 
+            grid-template-columns: repeat(2, 1fr); /* Mobile Default */
+        }
+        @media (min-width: 768px) {
+            .grid { grid-template-columns: repeat(4, 1fr); gap: 15px; padding-right: 60px; }
+        }
+
+        /* Card Styles */
+        .card { 
+            background: var(--glass-card); border: 1px solid var(--glass-border); 
+            border-radius: 12px; overflow: hidden; position: relative; 
+            transform: translateZ(0); 
+        }
+        .card:active { transform: scale(0.96); background: #333; }
+        .card.highlight { border-color: var(--primary); z-index: 20; box-shadow: 0 0 15px var(--primary); }
+        
+        .card img { 
+            width: 100%; height: 120px; object-fit: cover; opacity: 0.9; display: block; 
+        }
+        @media (min-width: 768px) { .card img { height: 160px; } }
+
+        .card-body { padding: 8px; }
+        .p-name { font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #eee; }
+        .p-price { color: var(--primary); font-weight: 800; font-size: 1rem; }
+        
+        .qty-badge { 
+            position: absolute; top: 5px; left: 5px; background: var(--primary); color: white; 
+            width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; font-size: 0.8rem; opacity: 0; transform: scale(0); transition: 0.2s;
+        }
+        .qty-badge.active { opacity: 1; transform: scale(1); }
+
+        /* Basket */
+        #top-basket {
+            position: fixed; top: 15px; left: 50%; transform: translateX(-50%) translateY(-100px);
+            background: var(--primary); color: white; padding: 8px 25px; border-radius: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); z-index: 9500; cursor: pointer;
+            display: flex; align-items: center; gap: 8px; font-weight: bold; transition: 0.3s; font-size: 0.9rem;
+        }
+        #top-basket.show { transform: translateX(-50%) translateY(0); }
+
+        /* Modals */
+        .modal { 
+            position: fixed; z-index: 10000; background: #000; 
+            transition: 0.3s; display: flex; flex-direction: column; overflow: hidden;
+            inset: auto; bottom: 0; left: 0; right: 0; top: auto;
+            width: 100%; height: 90vh; border-radius: 20px 20px 0 0;
+            transform: translateY(100%);
+        }
+        .modal.open { transform: translateY(0); }
+
+        /* Account Modal (Centered) */
+        #account-modal {
+            inset: 0 !important; top: 50% !important; left: 50% !important; bottom: auto !important; right: auto !important;
+            width: 90%; max-width: 400px; height: auto !important;
+            transform: translate(-50%, -50%) scale(0.9); opacity: 0; pointer-events: none;
+            border-radius: 15px; border: 1px solid #444;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+        }
+        #account-modal.open { transform: translate(-50%, -50%) scale(1); opacity: 1; pointer-events: all; }
+
+        .modal-header { padding: 15px; background: #111; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { flex: 1; overflow-y: auto; padding: 15px; background: #050505; }
+        .modal-footer { background: #111; padding: 15px; border-top: 1px solid #222; }
+
+        .glass-input {
+            width: 100%; padding: 12px; margin-bottom: 10px;
+            background: #222; border: 1px solid #333;
+            color: white; border-radius: 8px; font-size: 0.95rem;
+        }
+
+        .app-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 0.9rem; }
+        .app-table th { text-align: right; padding: 8px; color: #777; border-bottom: 1px solid #333; }
+        .app-table td { padding: 10px 5px; border-bottom: 1px solid #222; }
+        
+        .qty-ctrl { display: flex; align-items: center; gap: 10px; background: #222; padding: 2px 8px; border-radius: 6px; margin: 0 auto; width: fit-content; }
+        .qty-btn { width: 25px; height: 25px; background: #333; color: white; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; }
+
+        .total-box { display: flex; justify-content: space-between; align-items: center; background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 10px; margin-bottom: 15px; }
+        .total-amount { font-size: 1.4rem; color: var(--primary); font-weight: 800; }
+
+        .btn-main { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; }
+
+        /* Search */
+        #search-container {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 11000;
+            display: flex; justify-content: center; align-items: flex-start; padding-top: 80px;
+            opacity: 0; pointer-events: none; transition: 0.2s;
+        }
+        #search-container.visible { opacity: 1; pointer-events: all; }
+        #search-box { width: 90%; max-width: 500px; background: #1a1a1a; padding: 15px; border-radius: 12px; border: 1px solid #333; display: flex; gap: 10px; align-items: center; }
+        #search-input { flex: 1; background: none; border: none; color: white; font-size: 1.1rem; text-align: center; }
+        
+        /* Bottom Nav */
+        .bottom-nav { 
+            position: fixed; bottom: 0; left: 0; right: 0; height: 60px; 
+            background: rgba(10, 10, 10, 0.95); border-top: 1px solid #333; 
+            display: flex; justify-content: space-around; align-items: center; 
+            z-index: 100; padding-bottom: 5px; 
+        }
+        .nav-btn { background: none; border: none; color: #666; display: flex; flex-direction: column; align-items: center; font-size: 10px; gap: 4px; cursor: pointer; padding: 8px; width: 100%; }
+        .nav-btn.active-nav { color: var(--primary); }
+        .nav-btn i { width: 20px; height: 20px; }
+
+        /* Google Button Style */
+        .btn-google {
+            background: white; color: #444; border: none;
+            padding: 12px; border-radius: 8px; font-weight: bold; font-size: 1rem;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+            width: 100%; transition: 0.2s;
+        }
+        .btn-google:active { transform: scale(0.98); background: #f1f1f1; }
+
+        /* Print */
+        @media print {
+            body * { visibility: hidden; }
+            #print-area, #print-area * { visibility: visible; }
+            #print-area { display: block !important; position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: white !important; color: black !important; padding: 10px; margin: 0; z-index: 999999; }
+            .p-header { text-align: center; border-bottom: 2px solid black; padding-bottom: 10px; margin-bottom: 10px; color: black !important; }
+            .p-table { width: 100%; border-collapse: collapse; font-size: 12px; direction: rtl; color: black !important; }
+            .p-table th { border-bottom: 1px solid black; text-align: right; padding: 5px 0; color: black !important; font-weight: bold; }
+            .p-table td { border-bottom: 1px dashed #ccc; padding: 5px 0; text-align: right; color: black !important; }
+            .p-total { font-weight: bold; font-size: 16px; border-top: 2px solid black; margin-top: 10px; padding-top: 5px; text-align: left; color: black !important; }
+            .ph-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 11px; font-weight: bold; text-align: center; margin-top: 5px; direction: rtl; }
+            .ph-item { direction: ltr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Print Area -->
+    <div id="print-area" style="display:none;">
+        <div class="p-header">
+            <h2 style="margin:0; margin-bottom: 8px;">کۆگای حاجی وشیار قادر</h2>
+            <div class="ph-grid">
+                <div class="ph-item">0750 849 4736 (رێباز)</div>
+                <div class="ph-item">0750 744 1349 (ديار)</div>
+                <div class="ph-item">0750 858 3673 (ڕێبوار)</div>
+                <div class="ph-item">0751 839 2445 (کارژين)</div>
+            </div>
+        </div>
+        <div style="font-size:12px; text-align:right; margin-bottom:10px;">
+            بەڕێز: <span id="pr-name"></span><br>
+            مۆبایل: <span id="pr-phone"></span><br>
+            بەروار: <span id="pr-date"></span>
+        </div>
+        <table class="p-table">
+            <thead>
+                <tr><th>کاڵا</th><th style="text-align:center">دانە</th><th style="text-align:left">نرخ</th></tr>
+            </thead>
+            <tbody id="pr-items"></tbody>
+        </table>
+        <div class="p-total">کۆی گشتی: <span id="pr-total"></span></div>
+    </div>
+
+    <!-- Header -->
+    <div class="header">
+        <button onclick="toggleSidebar()"><i data-feather="menu"></i></button>
+        <div class="brand">Haji Wushyar</div>
+        <div style="width: 32px;"></div>
+    </div>
+
+    <div id="top-basket" onclick="openReceiptModal()">
+        <i data-feather="shopping-cart" style="width:20px"></i>
+        <span id="basket-count">0</span>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="overlay" onclick="toggleSidebar()"></div>
+    <div class="sidebar" id="sidebar">
+        <h3 style="color:var(--primary); padding-bottom:15px; border-bottom:1px solid #333; margin-top:0;">بەشەکان</h3>
+        <div id="cat-list"></div>
+    </div>
+
+    <!-- Alpha Scroll -->
+    <div class="alpha-bar" id="alpha-bar"></div>
+    
+    <!-- Search Box -->
+    <div id="search-container" onclick="if(event.target === this) toggleSearch()">
+        <div id="search-box">
+            <i data-feather="search" style="color:#666"></i>
+            <input type="text" id="search-input" placeholder="ناوی کاڵا..." oninput="filterProducts(this.value)">
+            <button onclick="toggleSearch()" style="background:none; border:none; color:#666;"><i data-feather="x"></i></button>
+        </div>
+    </div>
+
+    <!-- PRODUCT GRID -->
+    <div class="grid" id="grid"></div>
+
+    <!-- Receipt Modal -->
+    <div class="modal" id="receipt-modal">
+        <div class="modal-header">
+            <h3 style="color:white; margin:0;">تەواوکردنی وەسڵ</h3>
+            <button onclick="closeModal('receipt-modal')" style="background:none; border:none; color:#666; font-size:1.5rem;"><i data-feather="x"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="text" id="cust-name" class="glass-input" placeholder="ناوی کڕیار (پێویستە)">
+            <input type="tel" id="cust-phone" class="glass-input" placeholder="ژمارە مۆبایل">
+
+            <table class="app-table">
+                <thead><tr><th>کاڵا</th><th style="text-align:center">دانە</th><th style="text-align:left">نرخ</th></tr></thead>
+                <tbody id="receipt-table-body"></tbody>
+            </table>
+
+            <div class="manual-add" style="background: #1a1a1a; padding: 15px; border-radius: 10px; border: 1px dashed #444; margin-bottom: 20px;">
+                <div style="font-size:0.85rem; color:#aaa; margin-bottom:10px;">زیادکردنی کاڵای دەرەکی:</div>
+                <div style="display:flex; gap:10px;">
+                    <input type="text" id="manual-name" class="glass-input" placeholder="ناو" style="margin:0; flex:2;">
+                    <input type="number" id="manual-price" class="glass-input" placeholder="نرخ" style="margin:0; flex:1;">
+                    <button onclick="addManualItem()" style="background:var(--success); border:none; color:white; border-radius:8px; width:45px; font-size:1.2rem;">+</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <div class="total-box">
+                <span class="total-label">کۆی گشتی:</span>
+                <span class="total-amount" id="receipt-sum">0</span>
+            </div>
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:10px;">
+                <button class="btn-main" onclick="saveSale('cash')">
+                    <i data-feather="printer"></i> وەسڵ و کاش
+                </button>
+                <button class="btn-main" onclick="saveSale('debt')" style="background: #222; border: 1px solid #444;">
+                    <i data-feather="book"></i> قەرز
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div class="modal" id="history-modal">
+        <div class="modal-header">
+            <h3 id="hist-title" style="color:white; margin:0;">لیست</h3>
+            <button onclick="closeModal('history-modal')" style="background:none; border:none; color:#666; font-size:1.5rem;"><i data-feather="x"></i></button>
+        </div>
+        <div class="modal-body" id="history-content"></div>
+    </div>
+
+    <!-- Account Modal -->
+    <div class="modal" id="account-modal">
+        <div class="modal-header">
+            <h3 style="color:white; margin:0;">هەژماری من</h3>
+            <button onclick="closeModal('account-modal')" style="background:none; border:none; color:#666; font-size:1.5rem;"><i data-feather="x"></i></button>
+        </div>
+        <div class="modal-body" style="text-align:center; display:flex; flex-direction:column; justify-content:center;">
+            
+            <!-- Content Injected via JS -->
+            <div id="account-content">
+                <!-- Loading... -->
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Bottom Nav -->
+    <div class="bottom-nav">
+        <button class="nav-btn" onclick="resetHome()"><i data-feather="home"></i>سەرەکی</button>
+        <button class="nav-btn" onclick="toggleSearch()"><i data-feather="search"></i>گەڕان</button>
+        <button class="nav-btn" onclick="openHistory('sales')"><i data-feather="file-text"></i>وەسڵەکان</button>
+        <button class="nav-btn" onclick="openHistory('debts')"><i data-feather="book"></i>قەرزەکان</button>
+        <button class="nav-btn" onclick="openAccount()"><i data-feather="user"></i>هەژمار</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, query, orderBy, getDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+        // Fixed Import: Added signInWithRedirect and getRedirectResult
+        import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+
+        const app = initializeApp({ 
+            apiKey: "AIzaSyA_ExY5gTIXw46LBxnKetW-vND05IbFJt4", 
+            authDomain: "nasrwla.firebaseapp.com", 
+            projectId: "nasrwla", 
+            storageBucket: "nasrwla.appspot.com", 
+            messagingSenderId: "986892855146", 
+            appId: "1:986892855146:web:1aec3c689e4da92470e713" 
+        });
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const googleProvider = new GoogleAuthProvider();
+
+        let products = [];
+        let cart = {};
+        let activeCat = 'All';
+        let currentUser = null;
+
+        feather.replace();
+
+        // --- AUTH LOGIC (REDIRECT METHOD) ---
+        
+        // Check for redirect result when page loads
+        getRedirectResult(auth)
+            .then((result) => {
+                if(result) { console.log("Logged in via redirect"); }
+            }).catch((error) => { console.error("Redirect Error:", error); });
+
+        onSnapshot(collection(db, "products"), (snap) => {
+            products = [];
+            snap.forEach(d => products.push({id: d.id, ...d.data()}));
+            products.sort((a,b) => a.name.localeCompare(b.name, 'ku'));
+            
+            const searchInput = document.getElementById('search-input');
+            if (searchInput && searchInput.value.length > 0) {
+                filterProducts(searchInput.value);
+            } else {
+                renderGrid();
+            }
+            renderCategories();
+            renderAlpha();
+        });
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if(document.getElementById('account-modal').classList.contains('open')){
+                renderAccountModal();
+            }
+        });
+
+        // FIXED: Using Redirect instead of Popup
+        window.loginGoogle = async () => {
+            try {
+                await signInWithRedirect(auth, googleProvider);
+            } catch (error) {
+                alert("کێشەیەک هەیە: " + error.message);
+            }
+        };
+
+        window.handleLogout = async () => {
+            if(confirm("دڵنیای لە دەرچوون؟")) {
+                await signOut(auth);
+                closeModal('account-modal');
+            }
+        };
+
+        function renderAccountModal() {
+            const container = document.getElementById('account-content');
+            if (!currentUser) {
+                // Not Logged In
+                container.innerHTML = `
+                    <div style="margin-bottom:20px; color:#aaa;">بۆ بینینی زانیاریەکانت بچۆ ژوورەوە</div>
+                    <button class="btn-google" onclick="loginGoogle()">
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20">
+                        چوونەژوورەوە بە Google
+                    </button>
+                `;
+            } else {
+                // Logged In
+                container.innerHTML = `
+                    <img src="${currentUser.photoURL || ''}" style="width:80px; height:80px; border-radius:50%; margin:0 auto 15px auto; border:2px solid var(--primary);">
+                    <div style="font-size:1.1rem; font-weight:bold; margin-bottom:5px;">${currentUser.displayName || 'کڕیار'}</div>
+                    <div style="color:#888; margin-bottom:30px;">${currentUser.email}</div>
+                    
+                    <button onclick="handleLogout()" style="background:var(--danger); color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; width:100%; display:flex; align-items:center; justify-content:center; gap:10px;">
+                        <i data-feather="log-out"></i> دەرچوون
+                    </button>
+                `;
+                feather.replace();
+            }
+        }
+
+        window.openAccount = () => {
+            closeAllModals();
+            renderAccountModal();
+            document.getElementById('account-modal').classList.add('open');
+        };
+
+        // --- CORE APP LOGIC ---
+
+        function renderGrid(list = products) {
+            const grid = document.getElementById('grid');
+            const isSearchResult = list !== products;
+            const filtered = (activeCat === 'All' || isSearchResult) ? list : list.filter(p => p.category === activeCat);
+            
+            grid.innerHTML = filtered.map((p, index) => `
+                <div class="card" id="card-${p.id}" onclick="addToCart('${p.id}')">
+                    <div class="qty-badge ${cart[p.id] ? 'active' : ''}" id="badge-${p.id}">${cart[p.id]?.qty || 0}</div>
+                    <img src="${p.imageUrl || ''}" loading="lazy">
+                    <div class="card-body">
+                        <div class="p-name">${p.name}</div>
+                        <div class="p-price">${Number(p.price).toLocaleString()}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderCategories() {
+            const cats = new Set(['All']);
+            products.forEach(p => {if(p.category) cats.add(p.category)});
+            document.getElementById('cat-list').innerHTML = Array.from(cats).map((c, index) => 
+                `<div class="cat-item ${c === activeCat ? 'active-cat' : ''}" onclick="filterCat('${c}')">${c === 'All' ? 'هەموو بەشەکان' : c}</div>`
+            ).join('');
+        }
+
+        function renderAlpha() {
+            const chars = ['ئ','ب','پ','ت','ج','چ','ح','خ','د','ر','ز','ژ','س','ش','ع','غ','ف','ق','ک','گ','ل','م','ن','و','ه','ی'];
+            document.getElementById('alpha-bar').innerHTML = chars.map(char => 
+                `<div class="alpha-char" onclick="scrollToChar('${char}')">${char}</div>`
+            ).join('');
+        }
+
+        window.scrollToChar = (char) => {
+            const found = products.find(p => p.name.trim().startsWith(char));
+            if(found) {
+                const el = document.getElementById(`card-${found.id}`);
+                el.scrollIntoView({behavior: "smooth", block: "center"});
+                el.classList.add('highlight');
+                setTimeout(()=>el.classList.remove('highlight'), 1000);
+            }
+        };
+
+        window.addToCart = (id) => {
+            const p = products.find(x => x.id === id);
+            if(cart[id]) cart[id].qty++;
+            else cart[id] = { ...p, qty: 1, id: id };
+            
+            // Simple Click Feedback
+            const card = document.getElementById(`card-${id}`);
+            card.style.opacity = "0.7";
+            setTimeout(() => card.style.opacity = "1", 100);
+            
+            updateUI();
+        };
+
+        window.changeQty = (id, delta) => {
+            if(cart[id]) {
+                cart[id].qty += delta;
+                if(cart[id].qty <= 0) delete cart[id];
+                updateUI();
+                renderReceiptItems();
+            }
+        };
+
+        window.addManualItem = () => {
+            const name = document.getElementById('manual-name').value;
+            let price = document.getElementById('manual-price').value;
+            
+            if(name && price) {
+                price = Number(price) || 0;
+                const id = 'm_' + Date.now();
+                cart[id] = { name: name, price: price, qty: 1, id: id };
+                updateUI();
+                renderReceiptItems();
+                document.getElementById('manual-name').value = '';
+                document.getElementById('manual-price').value = '';
+            }
+        };
+
+        function updateUI() {
+            products.forEach(p => {
+                const badge = document.getElementById(`badge-${p.id}`);
+                if(badge) {
+                    if(cart[p.id]) { badge.innerText = cart[p.id].qty; badge.classList.add('active'); }
+                    else badge.classList.remove('active');
+                }
+            });
+            const total = Object.values(cart).reduce((a,b)=>a+b.qty, 0);
+            const btn = document.getElementById('top-basket');
+            document.getElementById('basket-count').innerText = total;
+            if(total > 0) btn.classList.add('show'); else btn.classList.remove('show');
+        }
+
+        function renderReceiptItems() {
+            const tbody = document.getElementById('receipt-table-body');
+            let html = '';
+            let sum = 0;
+            Object.values(cart).forEach(item => {
+                const total = item.price * item.qty;
+                sum += total;
+                html += `
+                <tr>
+                    <td>${item.name}</td>
+                    <td style="text-align:center">
+                        <div class="qty-ctrl">
+                            <div class="qty-btn" onclick="changeQty('${item.id}', -1)">-</div>
+                            <span style="min-width:25px; text-align:center; font-weight:bold; color:white;">${item.qty}</span>
+                            <div class="qty-btn" onclick="changeQty('${item.id}', 1)">+</div>
+                        </div>
+                    </td>
+                    <td style="text-align:left">${total.toLocaleString()}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+            document.getElementById('receipt-sum').innerText = sum.toLocaleString();
+        }
+
+        window.openReceiptModal = () => {
+            document.getElementById('sidebar').classList.remove('open');
+            document.querySelector('.overlay').classList.remove('active');
+            renderReceiptItems();
+            document.getElementById('receipt-modal').classList.add('open');
+        };
+
+        window.saveSale = async (type) => {
+            if(Object.keys(cart).length === 0) return alert("سەبەتە بەتاڵە!");
+
+            const nameInput = document.getElementById('cust-name');
+            const name = nameInput.value.trim();
+            const phone = document.getElementById('cust-phone').value;
+            const total = Object.values(cart).reduce((a,b)=>a+(b.price*b.qty), 0);
+
+            if(!name) {
+                alert("تکایە ناوی کڕیار بنووسە!");
+                nameInput.focus();
+                nameInput.style.borderColor = "var(--danger)";
+                return;
+            }
+
+            const cleanItems = {};
+            Object.keys(cart).forEach(k => cleanItems[k] = { 
+                name: cart[k].name, 
+                price: Number(cart[k].price) || 0, 
+                qty: Number(cart[k].qty) || 1 
+            });
+
+            const data = {
+                customer: name,
+                phone: phone || "",
+                items: cleanItems,
+                total: total,
+                date: serverTimestamp(),
+                type: type,
+                createdBy: currentUser ? currentUser.email : 'Unknown'
+            };
+
+            try {
+                if(type === 'debt') {
+                    let paid = prompt(`کۆی گشتی: ${total}\nبڕی پارەی دراو (Wasil):`, "0");
+                    if(paid === null) return;
+                    paid = Number(paid);
+                    if(isNaN(paid)) paid = 0;
+                    
+                    data.paid = paid;
+                    data.remaining = total - paid;
+                    await addDoc(collection(db, "debts"), data);
+                    alert("قەرزەکە خەزن کرا ✅");
+                } else {
+                    await addDoc(collection(db, "sales"), data);
+                    
+                    const printArea = document.getElementById('print-area');
+                    
+                    document.getElementById('pr-name').innerText = data.customer;
+                    document.getElementById('pr-phone').innerText = data.phone;
+                    document.getElementById('pr-date').innerText = new Date().toLocaleDateString();
+                    document.getElementById('pr-items').innerHTML = Object.values(cart).map(i => 
+                        `<tr><td>${i.name}</td><td style="text-align:center">${i.qty}</td><td style="text-align:left">${(i.price*i.qty).toLocaleString()}</td></tr>`
+                    ).join('');
+                    document.getElementById('pr-total').innerText = total.toLocaleString();
+                    
+                    printArea.style.display = 'block';
+                    window.print();
+                    setTimeout(() => { printArea.style.display = 'none'; }, 1000);
+                }
+                
+                cart = {};
+                updateUI();
+                closeModal('receipt-modal');
+                document.getElementById('cust-name').value = '';
+                document.getElementById('cust-phone').value = '';
+                document.getElementById('cust-name').style.borderColor = "#333";
+                
+            } catch(e) { 
+                console.error(e);
+                alert("هەڵە: " + e.message); 
+            }
+        };
+
+        window.openHistory = (col) => {
+            closeAllModals();
+            document.getElementById('hist-title').innerText = col === 'sales' ? "وەسڵەکان" : "قەرزەکان";
+            document.getElementById('history-modal').classList.add('open');
+            
+            onSnapshot(query(collection(db, col), orderBy("date", "desc")), (snap) => {
+                const div = document.getElementById('history-content');
+                if(snap.empty) { div.innerHTML = "<p style='text-align:center; color:#777; margin-top:50px;'>هیچ تۆمارێک نییە</p>"; return; }
+                
+                div.innerHTML = snap.docs.map(doc => {
+                    const d = doc.data();
+                    const date = d.date ? new Date(d.date.toDate()).toLocaleDateString() : '';
+                    return `
+                    <div style="background:rgba(255,255,255,0.05); padding:15px; margin-bottom:12px; border-radius:15px; border:1px solid rgba(255,255,255,0.05);">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                            <strong style="color:white; font-size:1.1rem;">${d.customer}</strong>
+                            <small style="color:#777;">${date}</small>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div>
+                                <div style="color:var(--primary); font-weight:900; font-size:1.1rem;">${Number(d.total).toLocaleString()} د.ع</div>
+                                ${d.type === 'debt' ? `<div style="color:var(--danger); font-size:0.9rem; margin-top:4px;">ماوە: ${Number(d.remaining).toLocaleString()}</div>` : ''}
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button onclick="restoreOrder('${doc.id}', '${col}')" style="background:var(--primary); border:none; color:white; padding:8px 12px; border-radius:10px; cursor:pointer;">
+                                    <i data-feather="rotate-ccw" style="width:18px;"></i>
+                                </button>
+                                <button onclick="deleteRec('${col}', '${doc.id}')" style="background:var(--danger); border:none; color:white; padding:8px 12px; border-radius:10px; cursor:pointer;">
+                                    <i data-feather="trash-2" style="width:18px;"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+                feather.replace();
+            });
+        };
+
+        window.restoreOrder = async (id, col) => {
+            try {
+                const docSnap = await getDoc(doc(db, col, id));
+                if (docSnap.exists()) {
+                    if(confirm("دەتەوێت کاڵاکانی ئەم وەسڵە بگەڕێنیتەوە؟")) {
+                        const data = docSnap.data();
+                        cart = data.items;
+                        document.getElementById('cust-name').value = data.customer;
+                        document.getElementById('cust-phone').value = data.phone;
+                        updateUI();
+                        closeModal('history-modal');
+                        openReceiptModal();
+                    }
+                }
+            } catch (e) { alert("هەڵە!"); }
+        };
+
+        window.deleteRec = async (col, id) => { 
+            if(confirm("دڵنیای لە سڕینەوە؟")) {
+                await deleteDoc(doc(db, col, id));
+            }
+        };
+
+        window.filterCat = (c) => { 
+            activeCat = c; renderGrid(); renderCategories();
+            document.getElementById('sidebar').classList.remove('open');
+            document.querySelector('.overlay').classList.remove('active');
+        };
+
+        window.filterProducts = (val) => {
+            activeCat = 'All'; renderCategories();
+            const res = products.filter(p => p.name.toLowerCase().includes(val.toLowerCase()));
+            renderGrid(res);
+        };
+        
+        window.toggleSidebar = () => { 
+            closeAllModals();
+            document.getElementById('sidebar').classList.toggle('open'); 
+            document.querySelector('.overlay').classList.toggle('active'); 
+        };
+        
+        window.toggleSearch = () => {
+             const container = document.getElementById('search-container');
+             const input = document.getElementById('search-input');
+             
+             if(container.classList.contains('visible')) {
+                 container.classList.remove('visible');
+             } else {
+                 closeAllModals();
+                 container.classList.add('visible');
+                 input.focus();
+             }
+        };
+
+        window.resetHome = () => {
+            closeAllModals();
+            document.getElementById('search-input').value = '';
+            activeCat = 'All';
+            renderGrid(products);
+            renderCategories();
+        };
+
+        window.closeModal = (id) => document.getElementById(id).classList.remove('open');
+        window.closeAllModals = () => { 
+            closeModal('receipt-modal'); 
+            closeModal('history-modal'); 
+            closeModal('account-modal');
+            document.getElementById('search-container').classList.remove('visible'); 
+            document.getElementById('sidebar').classList.remove('open');
+            document.querySelector('.overlay').classList.remove('active');
+        };
+    </script>
+</body>
+</html>
